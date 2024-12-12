@@ -21,20 +21,43 @@ const vertex_GLSL = `#version 300 es
 
 in vec4 position;
 uniform mat2 u_matrix;
+uniform vec2 u_translation;
+uniform vec3 u_color;
+out vec3 v_color;
+out vec2 v_position;  // Pour passer la position au fragment shader
 
 void main() {
+  // On applique d'abord la rotation puis la translation
   vec2 rotated = u_matrix * position.xy;
-  gl_Position = vec4(rotated, 0.0, 1.0);
+  vec2 translated = rotated + u_translation;
+  
+  // Passage de la couleur au fragment shader
+  v_color = u_color;
+  
+  // Passage de la position au fragment shader
+  v_position = translated;
+  
+  gl_Position = vec4(translated, 0.0, 1.0);
 }
 `;
 
 const fragment_GLSL = `#version 300 es
 precision highp float;
 
+in vec3 v_color;
+in vec2 v_position;
 out vec4 outColor;
 
 void main() {
-  outColor = vec4(1,1,0,1);
+  // Calcul de la distance à l'origine avec la fonction length
+  float distance = length(v_position);
+  
+  // Si la distance est inférieure ou égale à 0.75, on met du bleu
+  if (distance <= 0.75) {
+    outColor = vec4(0.0, 0.0, 1.0, 1.0);  // Bleu
+  } else {
+    outColor = vec4(v_color, 1.0);  // Couleur normale
+  }
 }
 `;
 
@@ -44,9 +67,11 @@ const prg = creation_programme_shading(gl, [
     [ gl.FRAGMENT_SHADER, fragment_GLSL ]
 ]);
 
-// Références vers l'attribut 'position' et l'uniform 'u_matrix'
+// Références vers l'attribut 'position' et les uniforms
 const positionLoc = gl.getAttribLocation(prg, 'position');
 const matrixLoc = gl.getUniformLocation(prg, 'u_matrix');
+const translationLoc = gl.getUniformLocation(prg, 'u_translation');
+const colorLoc = gl.getUniformLocation(prg, 'u_color');
 
 // Points du triangle
 const vertexPositions = new Float32Array(calcGauche());
@@ -75,18 +100,40 @@ function draw() {
     gl.clear(gl.COLOR_BUFFER_BIT);
 
     // Mise à jour de l'angle et création de la matrice de rotation
-    angle += 0.02; // Vitesse de rotation paisible
+    angle += 0.02;
     const rotationMatrix = new Float32Array([
         Math.cos(angle), Math.sin(angle),
         -Math.sin(angle), Math.cos(angle)
     ]);
 
-    // Utilisation du programme et mise à jour de la matrice
+    // Utilisation du programme
     gl.useProgram(prg);
     gl.uniformMatrix2fv(matrixLoc, false, rotationMatrix);
 
-    // Dessin des triangles
-    gl.drawArrays(gl.TRIANGLES, 0, vertexPositions.length/2);
+    // Dessin des 12 étoiles sur une grille 4x3
+    for (let k = 0; k < 3; k++) {        // lignes
+        for (let j = 0; j < 4; j++) {    // colonnes
+            // Calcul de la position de l'étoile selon la formule
+            const translation = [
+                -0.75 + 0.5 * j,    // x
+                -0.75 + 0.75 * k    // y
+            ];
+            
+            // Mise à jour de la translation
+            gl.uniform2fv(translationLoc, translation);
+            
+            // Sélection et mise à jour de la couleur
+            const colorIndex = k * 4 + j;
+            gl.uniform3f(colorLoc, 
+                colors[colorIndex * 3],
+                colors[colorIndex * 3 + 1],
+                colors[colorIndex * 3 + 2]
+            );
+            
+            // Dessin de l'étoile
+            gl.drawArrays(gl.TRIANGLES, 0, vertexPositions.length/2);
+        }
+    }
 
     // Demande la prochaine frame
     requestAnimationFrame(draw);
