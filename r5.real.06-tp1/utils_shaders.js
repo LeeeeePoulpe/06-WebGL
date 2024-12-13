@@ -15,7 +15,7 @@ function charger_code_shader(gl, type_shader, code_source_shader) {
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
     alert(`Problème de compilation: ${gl.getShaderInfoLog(shader)}`);
     gl.deleteShader(shader);
-    
+
     return null;
   }
 
@@ -25,25 +25,23 @@ function charger_code_shader(gl, type_shader, code_source_shader) {
 //
 // Création d'un programme de shading et association de modules de shading
 //
-function creation_programme_shading(gl, shading_modules) {
-  // Creation du programme de shading
-  const shader_program = gl.createProgram();
-  
-  // Association de chaque shader au programme
-  for(const entry of shading_modules) {
-     // [0] => type de shader, [1] => code source
-     const shader = charger_code_shader(gl, entry[0], entry[1]);
-     
-     // Attache le module de shading au programme
-     gl.attachShader(shader_program, shader)
+function creation_programme_shading(gl, shaders) {
+  const program = gl.createProgram();
+  for (let [type, source] of shaders) {
+    const shader = gl.createShader(type);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+      console.error(gl.getShaderInfoLog(shader));
+      gl.deleteShader(shader);
+      throw new Error("Erreur de compilation du shader");
+    }
+    gl.attachShader(program, shader);
   }
-  gl.linkProgram(shader_program);
-
-  // Vérification
-  if (!gl.getProgramParameter(shader_program, gl.LINK_STATUS)) {
-    alert(`Pb init programme de shading : ${gl.getProgramInfoLog(shader_program)}`);
-    return null;
+  gl.linkProgram(program);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    console.error(gl.getProgramInfoLog(program));
+    throw new Error("Erreur de liaison du programme");
   }
-
-  return shader_program;
+  return program;
 }
