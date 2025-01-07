@@ -16,9 +16,12 @@ if (!gl) {
 //====================================
 const vertex_GLSL = `#version 300 es
 in vec3 a_position;
+uniform mat4 m_model;
+uniform mat4 m_view;
+// uniform vec4 projection;
 
 void main() {
-  gl_Position = vec4(a_position,1);
+  gl_Position = m_model * vec4(a_position,1) * m_view;
 }
 `;
 
@@ -39,16 +42,40 @@ const prg = creation_programme_shading(gl, [
 
 // Localisation des attributs
 const positionLocation = gl.getAttribLocation(prg, "a_position");
+const translationLocation = gl.getUniformLocation(prg, "m_model")
+const viewLocation = gl.getUniformLocation(prg, "m_view")
+// const projectionLocation = gl.getUniformLocation(prg, "projection");
+
+
+//====================================
+// Création et envoi de la matrice de Translation
+//====================================
+const m_translation = math.flatten(translation(0, 0, -300)).valueOf();
+
+//====================================
+// Création et envoi de la matrice de vue
+//====================================
+const m_view = math.flatten(ndc(canvas.width, canvas.height, , -15)).valueOf();
+
+//====================================
+// Création et envoi de la matrice de projection
+//====================================
+// const fieldOfViewRadians = 60
+// const aspect = canvas.clientWidth / canvas.clientHeight;
+// const near = 1;
+// const far = -15;
+// const projectionMatrix = projection(fieldOfViewRadians, aspect, near, far);
+
 
 //====================================
 // Création des buffers
 //====================================
 // Pour chaque attribut, définir un buffer de données
 // et spécifier le parcours des données du buffer
-const positionBuffer = gl.createBuffer();
-gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(getFGeometry()), gl.STATIC_DRAW);
-gl.enableVertexAttribArray(positionLocation);
+const positionBuffer = gl.createBuffer(); // création du buffer
+gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer); // association du buffer à l'attribut position
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(getFGeometry()), gl.STATIC_DRAW); // chargement des données
+gl.enableVertexAttribArray(positionLocation); // activation de l'attribut position
 gl.vertexAttribPointer(positionLocation, 3, gl.FLOAT, false, 0, 0);
 
 //====================================
@@ -57,6 +84,10 @@ gl.vertexAttribPointer(positionLocation, 3, gl.FLOAT, false, 0, 0);
 
 // Spécifier le programme utilisé (i.e. les shaders utilisés)
 gl.useProgram(prg);
+gl.uniformMatrix4fv(translationLocation, false, m_translation);
+gl.uniformMatrix4fv(viewLocation, false, m_view);
+// gl.uniformMatrix4fv(projectionLocation, false, projectionMatrix);
+
 
 // Réinitialiser le viewport
 // Le fragment shader dessine les pixels du viewport.
@@ -74,4 +105,3 @@ const primitiveType = gl.TRIANGLES;
 const offset = 0;
 const count = 96; // 16 tuiles de 2 triangles avec 3 vertices chacun
 gl.drawArrays(primitiveType, offset, count);
-
