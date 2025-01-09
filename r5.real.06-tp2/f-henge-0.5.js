@@ -1,4 +1,4 @@
-// version 0.5 : question 1 de l'exercice 1 (révisions du TP1)
+// Ajout de la perspective
 'use strict';
 
 //====================================
@@ -16,12 +16,11 @@ if (!gl) {
 //====================================
 const vertex_GLSL = `#version 300 es
 in vec3 a_position;
-uniform mat4 m_model;
-uniform mat4 m_view;
-// uniform vec4 projection;
+uniform mat4 u_projectionMatrix;
+uniform mat4 u_modelViewMatrix;
 
 void main() {
-  gl_Position = m_model * vec4(a_position,1) * m_view;
+  gl_Position =  u_projectionMatrix * u_modelViewMatrix * vec4(a_position,1);
 }
 `;
 
@@ -42,40 +41,23 @@ const prg = creation_programme_shading(gl, [
 
 // Localisation des attributs
 const positionLocation = gl.getAttribLocation(prg, "a_position");
-const translationLocation = gl.getUniformLocation(prg, "m_model")
-const viewLocation = gl.getUniformLocation(prg, "m_view")
-// const projectionLocation = gl.getUniformLocation(prg, "projection");
-
-
-//====================================
-// Création et envoi de la matrice de Translation
-//====================================
-const m_translation = math.flatten(translation(0, 0, -300)).valueOf();
-
-//====================================
-// Création et envoi de la matrice de vue
-//====================================
-const m_view = math.flatten(ndc(canvas.width, canvas.height, , -15)).valueOf();
-
-//====================================
-// Création et envoi de la matrice de projection
-//====================================
-// const fieldOfViewRadians = 60
-// const aspect = canvas.clientWidth / canvas.clientHeight;
-// const near = 1;
-// const far = -15;
-// const projectionMatrix = projection(fieldOfViewRadians, aspect, near, far);
-
+// Localisation des uniforms
+const projectionMatrixLocation = gl.getUniformLocation(prg, "u_projectionMatrix");
+const modelViewMatrixLocation = gl.getUniformLocation(prg, "u_modelViewMatrix");
 
 //====================================
 // Création des buffers
 //====================================
+// [removed] Construire un VAO spécifique
+//const vao = gl.createVertexArray();
+//gl.bindVertexArray(vao);
+
 // Pour chaque attribut, définir un buffer de données
 // et spécifier le parcours des données du buffer
-const positionBuffer = gl.createBuffer(); // création du buffer
-gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer); // association du buffer à l'attribut position
-gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(getFGeometry()), gl.STATIC_DRAW); // chargement des données
-gl.enableVertexAttribArray(positionLocation); // activation de l'attribut position
+const positionBuffer = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(getFGeometry()), gl.STATIC_DRAW);
+gl.enableVertexAttribArray(positionLocation);
 gl.vertexAttribPointer(positionLocation, 3, gl.FLOAT, false, 0, 0);
 
 //====================================
@@ -84,9 +66,33 @@ gl.vertexAttribPointer(positionLocation, 3, gl.FLOAT, false, 0, 0);
 
 // Spécifier le programme utilisé (i.e. les shaders utilisés)
 gl.useProgram(prg);
-gl.uniformMatrix4fv(translationLocation, false, m_translation);
-gl.uniformMatrix4fv(viewLocation, false, m_view);
-// gl.uniformMatrix4fv(projectionLocation, false, projectionMatrix);
+
+// Données constantes pour toutes les images de l'animation
+
+// La matrice de projection : transforme un frustum contenant la scène en le cube [-1;1]x[-1;1]x[-1;1]
+// de telle sorte que la projection orthographique du cube sur sa face avant corresponde
+// à la projection en perspective du frustum sur sa petite face avant (modulo la déformation
+// des proportions de la face avant).
+// Pour projection(fov,a,n,f), le frustum est l'espace entre les profondeurs -n et -f,
+// l'angle d'ouverture verticale est fov, et le ratio largeur/hauteur de l'écran est a.
+//
+// La projection du cube sur sa face avant sera à son tour déformée lors de son rendu dans le viewport.
+// Il faut donc que cette déformation soit l'inverse de celle appliquée entre frustum et le cube :
+//  -> Le ratio a est celui du viewport = celui du canevas.
+// La caméra se trouvant à la pointe de la pyramide prolongeant le frustum, il faut n > 0.
+//  -> On choisit n=1.
+// La scene doit contenir le F translaté.
+// La bounding-box du F étant [-15;85]x[0;150]x[-15;15], il faut z_t > 15 et f > 30,
+// ainsi que fov > 2*atan(150/(z_t-15)) = 0.97rad = 55,5°
+//  -> On choisit z_t = 300, f = 800 et fov = 60°
+// Jouer pour comprendre l'effet de ces différents paramètres.
+const aspect = canvas.clientWidth / canvas.clientHeight;
+const fieldOfViewInRadians = degToRad(60);
+const zNear = 1; //1
+const zFar = 800;//2000;
+const projectionMatrix = projection(fieldOfViewInRadians, aspect, zNear, zFar);
+
+gl.uniformMatrix4fv(projectionMatrixLocation, true, math.flatten(projectionMatrix).valueOf());
 
 
 // Réinitialiser le viewport
@@ -97,9 +103,19 @@ gl.uniformMatrix4fv(viewLocation, false, m_view);
 // pour compenser la future déformation,
 // pour le viewport, ce sont les dimensions du canvas (avant déformation par le css).
 gl.viewport(0, 0, canvas.width, canvas.height);
-gl.clearColor(0.5, 0.7, 1.0, 1.0); // couleur du canvas et non du viewport
-gl.clear(gl.COLOR_BUFFER_BIT);
+gl.clearColor(0.5, 0.7, 1.0, 1.0);
+gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 gl.enable(gl.CULL_FACE);
+gl.enable(gl.DEPTH_TEST);
+
+// Mise à jour des uniforms (et attributes)
+
+// - définir la matrice de positionnement de l'objet dans la scène
+const objectMatrixWorld = translation(0, 0, -300);
+
+//  - en déduire la matrice de vue de la scène
+const modelViewMatrix = objectMatrixWorld;
+gl.uniformMatrix4fv(modelViewMatrixLocation, true, math.flatten(modelViewMatrix).valueOf());
 
 const primitiveType = gl.TRIANGLES;
 const offset = 0;
