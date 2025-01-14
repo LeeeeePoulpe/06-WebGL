@@ -50,7 +50,7 @@ const colorLocation = gl.getAttribLocation(prg, "a_color");
 // Localisation des uniforms
 const projectionMatrixLocation = gl.getUniformLocation(
   prg,
-  "u_projectionMatrix",
+  "u_projectionMatrix"
 );
 const modelViewMatrixLocation = gl.getUniformLocation(prg, "u_modelViewMatrix");
 
@@ -64,7 +64,7 @@ gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
 gl.bufferData(
   gl.ARRAY_BUFFER,
   new Float32Array(getFGeometry()),
-  gl.STATIC_DRAW,
+  gl.STATIC_DRAW
 );
 gl.enableVertexAttribArray(positionLocation);
 gl.vertexAttribPointer(positionLocation, 3, gl.FLOAT, false, 0, 0);
@@ -78,7 +78,7 @@ for (let i = 0; i < 18; i++) {
     ui8Colors[0] / 255,
     ui8Colors[1] / 255,
     ui8Colors[2] / 255,
-    1.0,
+    1.0
   );
 }
 
@@ -88,7 +88,7 @@ for (let i = 0; i < 18; i++) {
     ui8Colors[4] / 255,
     ui8Colors[5] / 255,
     ui8Colors[6] / 255,
-    1.0,
+    1.0
   );
 }
 
@@ -100,7 +100,7 @@ for (let i = 0; i < 10; i++) {
       ui8Colors[baseIndex] / 255,
       ui8Colors[baseIndex + 1] / 255,
       ui8Colors[baseIndex + 2] / 255,
-      1.0,
+      1.0
     );
   }
 }
@@ -110,22 +110,6 @@ gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
 gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colorArray), gl.STATIC_DRAW);
 gl.enableVertexAttribArray(colorLocation);
 gl.vertexAttribPointer(colorLocation, 4, gl.FLOAT, false, 0, 0);
-
-// Vecteur UP
-const angleX = degToRad(-25);
-
-// angle de visée vers le bas
-const angleY = degToRad(-30);
-
-// Matrice de rotation camera
-let cameraMatrix = math.identity(4);
-
-// on applique les trucs sur la camera
-cameraMatrix = math.multiply(cameraMatrix, translation(0, 250, 500));
-// cameraMatrix = math.multiply(cameraMatrix, yRotation(angleY));
-cameraMatrix = math.multiply(cameraMatrix, xRotation(angleX));
-
-cameraMatrix = math.inv(cameraMatrix);
 
 //====================================
 // Dessin de l'image
@@ -142,7 +126,7 @@ const projectionMatrix = projection(fieldOfViewInRadians, aspect, zNear, zFar);
 gl.uniformMatrix4fv(
   projectionMatrixLocation,
   true,
-  math.flatten(projectionMatrix).valueOf(),
+  math.flatten(projectionMatrix).valueOf()
 );
 
 gl.viewport(0, 0, canvas.width, canvas.height);
@@ -151,28 +135,47 @@ gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 gl.enable(gl.CULL_FACE);
 gl.enable(gl.DEPTH_TEST);
 
-const primitiveType = gl.TRIANGLES;
-const offset = 0;
-const count = 96;
+const rotationSpeed = 0.01;
+const rotationAngle = 0;
+function render() {
+  rotationAngle += rotationSpeed;
 
-const nb_f = 5;
+  const primitiveType = gl.TRIANGLES;
+  const offset = 0;
+  const count = 96;
 
-for (let k = 0; k < nb_f; k++) {
+  const nb_f = 5;
+
+  const angleX = degToRad(-25);
+  const angleY = degToRad(-30);
+
+  let cameraMatrix = math.identity(4);
+  cameraMatrix = math.multiply(cameraMatrix, translation(0, 250, 500));
+  cameraMatrix = math.multiply(cameraMatrix, xRotation(angleX));
+
+  cameraMatrix = math.inv(cameraMatrix);
+
+  gl.uniformMatrix4fv(modelViewMatrixLocation, true, math.flatten(cameraMatrix).valueOf());
+
+  for (let k = 0; k < nb_f; k++) {
     const angle = (k * Math.PI * 2) / nb_f;
     const x = Math.cos(angle) * 200;
     const z = -Math.sin(angle) * 200;
 
     const modelViewMatrix = math.multiply(
-        cameraMatrix,
-        translation(x, 0, z),
-        yRotation(angle + 90),
-    )
+      translation(x, 0, z),
+      yRotation(angle + 90)
+    );
 
     gl.uniformMatrix4fv(
-        modelViewMatrixLocation,
-        true,
-        math.flatten(modelViewMatrix).valueOf(),
-    )
+      modelViewMatrixLocation,
+      true,
+      math.flatten(modelViewMatrix).valueOf()
+    );
 
     gl.drawArrays(primitiveType, offset, count);
+  }
+  requestAnimationFrame(render);
 }
+
+render();
