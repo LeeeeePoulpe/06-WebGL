@@ -112,7 +112,7 @@ gl.enableVertexAttribArray(colorLocation);
 gl.vertexAttribPointer(colorLocation, 4, gl.FLOAT, false, 0, 0);
 
 // Vecteur UP
-const angleX = degToRad(35);
+const angleX = degToRad(-25);
 
 // angle de visée vers le bas
 const angleY = degToRad(-30);
@@ -121,9 +121,11 @@ const angleY = degToRad(-30);
 let cameraMatrix = math.identity(4);
 
 // on applique les trucs sur la camera
-cameraMatrix = math.multiply(cameraMatrix, translation(0, 0, -500));
+cameraMatrix = math.multiply(cameraMatrix, translation(0, 250, 500));
 // cameraMatrix = math.multiply(cameraMatrix, yRotation(angleY));
 cameraMatrix = math.multiply(cameraMatrix, xRotation(angleX));
+
+cameraMatrix = math.inv(cameraMatrix);
 
 //====================================
 // Dessin de l'image
@@ -149,19 +151,14 @@ gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 gl.enable(gl.CULL_FACE);
 gl.enable(gl.DEPTH_TEST);
 
-const modelViewMatrix = cameraMatrix;
-gl.uniformMatrix4fv(
-  modelViewMatrixLocation,
-  true,
-  math.flatten(modelViewMatrix).valueOf(),
-);
-
 const primitiveType = gl.TRIANGLES;
 const offset = 0;
 const count = 96;
 
-for (let k = 0; k < 5; k++) {
-    const angle = (k * Math.PI * 2) / 5;
+const nb_f = 5;
+
+for (let k = 0; k < nb_f; k++) {
+    const angle = (k * Math.PI * 2) / nb_f;
     const x = Math.cos(angle) * 200;
     const z = -Math.sin(angle) * 200;
 
